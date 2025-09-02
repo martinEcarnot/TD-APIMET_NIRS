@@ -1,0 +1,168 @@
+---
+title: |
+ TD Spectroscopie proche infrarouge. Prise en Main des données. ACP et Prétraitements
+author: "Martin Ecarnot. Strucure insp. par Bénédicte Fontez"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+******
+
+GOAL : **Getting familiar with Near Infrared Spectroscopiy (NIRS) data. Make pretreatments and PCA**
+
+*****
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE, 
+                      message=FALSE, 
+                      warning=FALSE)
+```
+
+# R packages
+
+```{r libraries}
+
+#----------Visualization and pre-treatment for spectral data
+  library(rchemo)    # all inclusive
+#-----------------------------------------------------
+
+#---------- For PCA
+  library(FactoMineR) # Data analysis (PCA)
+  library(factoextra)  # Plots for PCA outputs
+#-----------------------------------------------------
+```
+
+
+# Data Inspection
+
+## Data importation
+Spectra collected on fresh wheat leaves at 3 dates, with ASD Labspec spectrometer (wavelength range 350-2500 nm).
+Spectra collected on entire wheat grains, with PerkinElmer Frontier spectrometer (wavelength range 1000-2500 nm).
+Spectra collected on soil samples, with spectrometer wavelength range 1000-2500 nm.
+
+
+```{r importation}
+  load("~/Documents/INRA/enseignement/TD-APIMET_NIRS/2025/TD_APIMET_feuille_vigne_MicroNIR")
+
+  str(sp)
+```
+
+## Graphic of the spectral data
+
+- Function `plotsp` (rchemo package)
+```{r}
+plotsp(sp, col=class, xlab="wavelength", ylab="Reflectance", main ="Spectre Brut")
+legend(x="topright", legend=unique(class), col=1:nlevels(class), lty=1)
+
+```
+
+- 
+
+# Pre-treatment of spectral data
+
+## SNV Normalisation
+```{r basic}
+
+sp_snv=snv(sp)
+plotsp(sp_snv, col=class, xlab="wavelength", ylab="Reflectance", main ="Prétraitement SNV")
+legend(x="topright", legend=unique(class), col=1:nlevels(class), lty=1)
+
+```
+
+## Detrend
+```{r}
+
+sp_detr=detrend(sp, degree=2)
+plotsp(sp_detr, col=class, xlab="wavelength", ylab="Reflectance", main ="Prétraitement Detrend")
+legend(x="topright", legend=unique(class), col=1:nlevels(class), lty=1)
+
+```
+
+## Derivatives
+
+```{r deriv}
+# p = polynomial order 
+# n = window size (must be odd) 
+# m = m-th derivative (0 = smoothing) 
+
+sp_deriv = savgol(sp, p = 2, n = 51, m = 2)
+plotsp(sp_deriv, col=class, xlab="wavelength", ylab="Intensity", main ="Prétraitement Dérivée")
+legend(x="topright", legend=unique(class), col=1:nlevels(class), lty=1)
+```
+
+# ACP
+
+- Computation
+
+```{r ACP}
+# sp_acp and class_acp are created only for PCA
+
+  sp_acp=sp
+  class_acp=class
+
+  pca <- PCA(sp_acp, graph=FALSE)
+```
+
+- Variance, Inertia analysis
+```{r eig}
+  fviz_screeplot(pca, addlabels = TRUE)
+``` 
+
+- Representation of sample on principal components
+
+```{r }
+  fviz_pca_ind(pca, axes=c(1,2), habillage =class_acp, label= "none", addEllipses = TRUE )
+```
+
+
+- Analysis of loadings
+```{r}
+  plot(rownames(pca$var$coord),pca$var$coord[,1],type="l", xlab="wavelength", ylab="Loadings", main ="1st Principal Component")
+``` 
+
+
+
+<!-- Rajouté après pour préparer JRLAT: essais avec jeu de données SIGNE -->
+<!-- ```{r} -->
+<!-- library(rnirs) -->
+<!-- library(FactoMineR) -->
+<!-- library(factoextra) -->
+<!-- load("~/Documents/INRA/Projets/SIGNE/signe_data") -->
+<!-- numsp=as.numeric(substr(rownames(sp),15,16)) -->
+<!-- sp$souche=cut(numsp, breaks = c(0,6,12,18),labels=c("s1","s2","s3"))   -->
+<!-- sp$feuille=cut(numsp, breaks = c(0,3,6,9,12,15,18),labels=c("f1","f2","f3","f1","f2","f3"))   -->
+<!-- sp$f=paste0(substr(rownames(sp$x),1,9),"-",sp$cep,"-",sp$clo,"-",sp$souche,"-",sp$feuille) -->
+
+<!-- spm=aggregate(sp$x, list(sp$f), mean) -->
+<!-- rownames(spm)=spm$Group.1 -->
+<!-- class=as.factor(substr(spm$Group.1,15,17))  # as.factor(substr(spm$Group.1,11,11)) -->
+<!-- x=as.matrix(spm[,-1]) -->
+<!-- dates=substr(rownames(x),1,8) -->
+
+
+<!-- iok=which(substr(rownames(x),11,11) == "G")  #which(sp$cep == "C") #which(substr(rownames(x),1,4) == "2019")       #(dates=="20170606" |  dates=="20180619" |  dates=="20190613") -->
+<!-- sp1=x[iok,] #sp$x[iok,] -->
+<!-- #sp1$xp = savgol(sp$x, p = 2, n = 51, m = 2) -->
+<!-- sp_acp = savgol(sp1, p = 2, n = 51, m = 2) #sp1$xp -->
+<!-- class_acp = droplevels(class[iok]) # droplevels(sp$clo[iok]) #class[iok] #sp1$cep -->
+<!-- # pca <- PCA(sp_acp, graph=FALSE, ncp = 5) -->
+<!-- # fviz_pca_ind(pca, axes=c(1,2), habillage =class_acp, label= "none", addEllipses = TRUE ) -->
+
+<!-- segm <- segmkf(n = nrow(sp_acp), K = 6) -->
+<!-- fm = cvfit(sp_acp, class_acp, fun=plsda,segm=segm, ncomp=30) -->
+<!-- z=err(fm, ~ ncomp) -->
+<!-- print(z) -->
+<!-- fm1=lapply(fm[1:3],function (x) {x[x$ncomp==15,]}) -->
+<!-- table(fm1$y$y1,fm1$fit$y1) -->
+
+<!-- # Save -->
+<!-- x=sp1 -->
+<!-- class=class_acp -->
+<!-- # Anonymisation -->
+<!-- class[class=="222"]="Clone1" -->
+<!-- class[class=="509"]="Clone2" -->
+<!-- class[class=="787"]="Clone3" -->
+<!-- #save(x,class, file="/home/ecarnot/Documents/INRA/enseignement/JRL2024_spectres_clones_Gamay") -->
+<!-- save(x,class, file="/home/ecarnot/Documents/INRA/enseignement/Spectres_clones_CepageX") -->
+
+<!-- ``` -->
+
+
