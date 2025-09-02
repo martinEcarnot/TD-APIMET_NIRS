@@ -40,7 +40,9 @@ Spectra collected on soil samples, with spectrometer wavelength range 1000-2500 
 
 
 ```{r importation}
-  load("~/Documents/INRA/enseignement/TD-APIMET_NIRS/2025/TD_APIMET_feuille_vigne_MicroNIR")
+  load("TD_APIMET_feuille_vigne_MicroNIR")
+
+
 
   str(sp)
 ```
